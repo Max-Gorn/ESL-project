@@ -16,7 +16,7 @@ SRC_FILES += \
   $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S \
   $(SDK_ROOT)/components/boards/boards.c \
   $(PROJ_DIR)/src/main.c \
-  $(PROJ_DIR)/src/esl_blinky.c \
+  $(PROJ_DIR)/src/blinker.c \
   $(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
 
 # Include folders common to all targets
