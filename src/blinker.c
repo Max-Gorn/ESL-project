@@ -23,6 +23,7 @@ void setup()
 
 void blink_with_id(const int* blinks_count_list, int delay)
 {
+    int led_state = !LEDS_ACTIVE_STATE;
     for (int led_number = 0; led_number < LEDS_NUMBER; led_number++)
     {
         for (int blink_number = 0; blink_number < *(blinks_count_list + led_number);)
@@ -31,9 +32,11 @@ void blink_with_id(const int* blinks_count_list, int delay)
             {
                 nrf_gpio_pin_toggle(leds[led_number]);
                 nrf_delay_ms(delay);
-                nrf_gpio_pin_toggle(leds[led_number]);
-                nrf_delay_ms(delay);
-                blink_number++;
+                
+                if (!led_state)
+                    blink_number++;
+                
+                led_state = !led_state;
             }
         }
     }
