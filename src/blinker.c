@@ -4,21 +4,16 @@
 #include "pca10059.h"
 #include "blinker.h"
 
+static void leds_init();
+static void buttons_init();
+
 static const uint32_t leds[] = LEDS_LIST;
 static const uint32_t buttons[] = BUTTONS_LIST;
 
 void setup()
 {
-    for (int i = 0; i < LEDS_NUMBER; i++)
-    {
-        nrf_gpio_cfg_output(leds[i]);
-        nrf_gpio_pin_write(leds[i], !LEDS_ACTIVE_STATE);
-    }
-
-    for (int i = 0; i < BUTTONS_NUMBER; i++)
-    {
-        nrf_gpio_cfg_input(buttons[i], BUTTON_PULL);
-    }
+    leds_init();
+    buttons_init();
 }
 
 void blink_with_id(const int* blinks_count_list, int delay)
@@ -39,5 +34,22 @@ void blink_with_id(const int* blinks_count_list, int delay)
                 led_state = !led_state;
             }
         }
+    }
+}
+
+static void leds_init()
+{
+    for (int i = 0; i < LEDS_NUMBER; i++)
+    {
+        nrf_gpio_cfg_output(leds[i]);
+        nrf_gpio_pin_write(leds[i], !LEDS_ACTIVE_STATE);
+    }
+}
+
+static void buttons_init()
+{
+    for (int i = 0; i < BUTTONS_NUMBER; i++)
+    {
+        nrf_gpio_cfg_input(buttons[i], BUTTON_PULL);
     }
 }
