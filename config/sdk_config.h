@@ -774,6 +774,14 @@
 
 // </e>
 
+#ifndef NRFX_SYSTICK_ENABLED
+#define NRFX_SYSTICK_ENABLED 1
+#endif
+
+#ifndef SYSTICK_ENABLED
+#define SYSTICK_ENABLED 1
+#endif
+
 // <e> NRFX_USBD_CONFIG_LOG_ENABLED - Enable logging in the module
 //==========================================================
 #ifndef NRFX_USBD_CONFIG_LOG_ENABLED
