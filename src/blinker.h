@@ -2,5 +2,5 @@
 #define BLINKER_H
 
 void setup();
-void blink_with_id(const int* blinks_count_list, int delay);
+void blink_with_id(const int* blinks_count_list);
 #endif
