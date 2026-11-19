@@ -1,4 +1,5 @@
 // Blink
+#define ID { 6, 6, 1, 1 }
 #define BLINK_DELAY_MS 500
 
 // Button

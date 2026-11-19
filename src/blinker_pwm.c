@@ -47,7 +47,7 @@ static void pwm_cycle()
     if (blink_state && nrfx_systick_test(&duty_change_timer, DUTY_CHANGE_DELAY_US))
     {
         nrfx_systick_get(&duty_change_timer);
-        if (duty >= 100)
+        if (duty >= 255)
         {
             is_duty_up = false;
         }
@@ -65,16 +65,14 @@ static void pwm_cycle()
     nrfx_systick_get(&pwm_timer);
     while (!nrfx_systick_test(&pwm_timer, PWM_PERIOD_US))
     {
-        if (duty > 0)
-        {
-            pwm_on();
-        }
-
-        pulse_width = duty * PWM_PERIOD_US / 100;
-
+        pulse_width = duty * PWM_PERIOD_US / 255;
         if (nrfx_systick_test(&pwm_timer, pulse_width))
         {
             pwm_off();
+        }
+        else
+        {
+            pwm_on();
         }
     }
 }
