@@ -62,10 +62,10 @@ static void pwm_cycle()
         }
     }
 
+    pulse_width = duty * PWM_PERIOD_US / 255;
     nrfx_systick_get(&pwm_timer);
     while (!nrfx_systick_test(&pwm_timer, PWM_PERIOD_US))
     {
-        pulse_width = duty * PWM_PERIOD_US / 255;
         if (nrfx_systick_test(&pwm_timer, pulse_width))
         {
             pwm_off();
