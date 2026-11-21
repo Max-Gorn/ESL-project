@@ -2,7 +2,7 @@
 #include "app_config.h"
 #include "blinker.h"
 
-static const int blinks_count_list[] = ID; // ID: #xxxx
+static const int blinks_count_list[] = ID;
 
 int main(void)
 {

@@ -1,29 +1,33 @@
 #include <stdint.h>
 #include <stdbool.h>
-#include "nrf_delay.h"
 #include "pca10059.h"
+#include "nrf_delay.h"
+#include "nrfx_systick.h"
 
 #include "app_config.h"
 #include "blinker.h"
 #include "blinker_button.h"
 #include "blinker_pwm.h"
 
-static void leds_init();
+#define DUTY_CHANGE_DELAY_US (DUTY_CHANGE_DELAY_MS * 1000UL)
 
+static nrfx_systick_state_t duty_change_timer;
+static int led_number;
+
+static const uint32_t leds[] = LEDS_LIST;
+
+static void leds_init();
 static void task_pin_on();
 static void task_pin_off();
 static void pin_on(uint32_t pin);
 static void pin_off(uint32_t pin);
-
-static const uint32_t leds[] = LEDS_LIST;
-
-static int led_number;
 
 void setup()
 {
     leds_init();
     setup_pwm();
     setup_button();
+    nrfx_systick_get(&duty_change_timer);
 }
 
 void blink_with_id(const int* blinks_count_list)
@@ -36,8 +40,7 @@ void blink_with_id(const int* blinks_count_list)
         for (int blink_number = 0; blink_number < *(blinks_count_list + led_number);)
         {
             duty_cycle();
-
-            nrf_gpio_pin_set(leds[led_number]);
+            nrf_gpio_pin_write(leds[led_number], !LEDS_ACTIVE_STATE);
             blink_number++;
 
             nrf_delay_ms(BLINK_DELAY_MS);
@@ -45,24 +48,41 @@ void blink_with_id(const int* blinks_count_list)
     }
 }
 
-static void task_pin_on()
+void duty_cycle()
 {
-    pin_on(leds[led_number]);
-}
+    uint32_t duty = 0;
+    bool is_duty_up = true;
+    bool blink_state = false;
 
-static void task_pin_off()
-{
-    pin_off(leds[led_number]);
-}
+    while (duty > 0 || is_duty_up)
+    {
+        if (blink_state && nrfx_systick_test(&duty_change_timer, DUTY_CHANGE_DELAY_US))
+        {
+            nrfx_systick_get(&duty_change_timer);
+            if (duty >= PWM_MAX_DUTY)
+            {
+                is_duty_up = false;
+            }
 
-static void pin_on(uint32_t pin)
-{
-    nrf_gpio_pin_clear(pin);
-}
+            if (is_duty_up)
+            {
+                duty++;
+            }
+            else
+            {
+                duty--;
+            }
+        }
+        
+        pwm_write(leds[led_number], duty);
 
-static void pin_off(uint32_t pin)
-{
-    nrf_gpio_pin_set(pin);
+        if (get_is_double_click())
+        {
+            blink_state = !blink_state;
+        }
+    }
+
+    is_duty_up = true;
 }
 
 static void leds_init()

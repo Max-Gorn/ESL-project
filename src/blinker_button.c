@@ -8,17 +8,23 @@
 
 #define DOUBLE_CLICK_PENDING_PERIOD_US DOUBLE_CLICK_PENDING_PERIOD_MS*1000UL
 
+typedef enum button_state {
+    IDLE,
+    FIRST_CLICK,
+    WAITING_SECOND_CLICK,
+    SECOND_CLICK
+} button_state_t;
+
 static nrfx_systick_state_t debounce_timer;
 static nrfx_systick_state_t double_click_timer;
 
-static bool is_debouncing = false;
-static bool double_click = false;
-static bool is_waiting_second_click = false;
+static bool is_click = false;
+static bool is_double_click = false;
 static volatile bool button_event_pending = false;
+static button_state_t state = IDLE;
 
 static void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t polarity);
-static bool debounce_timer_check();
-static bool double_click_check();
+static void button_event_processor();
 
 void setup_button()
 {
@@ -34,74 +40,83 @@ void setup_button()
     nrfx_gpiote_in_event_enable(BUTTON_1, true);
 }
 
-void enable_button()
+bool get_is_click()
 {
-    nrfx_gpiote_in_event_enable(BUTTON_1, true);
+    button_event_processor();
+    return is_click;
 }
 
-bool button_event_processor()
+bool get_is_double_click()
 {
-    // Button event pending process
-    if (button_event_pending && !is_debouncing)
-    {
-        button_event_pending = false;
-        is_debouncing = true;
-        nrfx_systick_get(&debounce_timer);
-    }
-    
-    // Debouncing
-    if (is_debouncing)
-    {
-        if (debounce_timer_check())
-        {
-            nrfx_gpiote_in_event_enable(BUTTON_1, true);
+    button_event_processor();
+    return is_double_click;
+}
 
-            if (nrf_gpio_pin_read(BUTTON_1) != BUTTONS_ACTIVE_STATE)
+static void button_event_processor()
+{
+    switch (state)
+    {
+        case IDLE:
+            is_click = false;
+            is_double_click = false;
+            // Button event pending process
+            if (button_event_pending)
             {
-                return false;
+                button_event_pending = false;
+                state = FIRST_CLICK;
+                nrfx_systick_get(&debounce_timer);
+            }
+            break;
+
+        case FIRST_CLICK:
+            // Debouncing
+            if (nrfx_systick_test(&debounce_timer, DEBOUNCE_DELAY_US))
+            {
+                nrfx_gpiote_in_event_enable(BUTTON_1, true);
+
+                if (nrf_gpio_pin_read(BUTTON_1) != BUTTONS_ACTIVE_STATE)
+                {
+                    state = IDLE;
+                    break;
+                }
+                state = WAITING_SECOND_CLICK;
+                is_click = true;
+                nrfx_systick_get(&double_click_timer);
+            }
+            break;
+
+        case WAITING_SECOND_CLICK:
+            // Button event pending process
+            if (button_event_pending)
+            {
+                button_event_pending = false;
+                state = SECOND_CLICK;
+                nrfx_systick_get(&debounce_timer);
             }
 
-            double_click = double_click_check();
+            if (nrfx_systick_test(&double_click_timer, DOUBLE_CLICK_PENDING_PERIOD_US))
+            {
+                state = IDLE;
+            }
+            
+            break;
 
-            return true;
-        }
+        case SECOND_CLICK:
+            // Debouncing
+            if (nrfx_systick_test(&debounce_timer, DEBOUNCE_DELAY_US))
+            {
+                nrfx_gpiote_in_event_enable(BUTTON_1, true);
+
+                state = IDLE;
+                if (nrf_gpio_pin_read(BUTTON_1) != BUTTONS_ACTIVE_STATE)
+                {
+                    break;
+                }
+                    
+                is_double_click = true;
+            }
+            break;
     }
-
-    return false;
-}
-
-bool get_double_click_state()
-{
-    return double_click;
-}
-
-void reset_double_click_state()
-{
-    double_click = false;
-}
-
-static bool double_click_check()
-{
-    if (is_waiting_second_click && !nrfx_systick_test(&double_click_timer, DOUBLE_CLICK_PENDING_PERIOD_US))
-    {
-        is_waiting_second_click = false;
-        return true;
-    }
-
-    is_waiting_second_click = true;
-    nrfx_systick_get(&double_click_timer);
-    return false;
-}
-
-static bool debounce_timer_check()
-{
-    if (nrfx_systick_test(&debounce_timer, DEBOUNCE_DELAY_US))
-    {
-        is_debouncing = false;
-        return true;
-    }
-
-    return false;
 }
 
 void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t polarity)
