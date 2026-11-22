@@ -1,20 +1,15 @@
 #include <stdbool.h>
+
 #include "pca10059.h"
+
 #include "nrfx_systick.h"
 
 #include "app_config.h"
 #include "blinker_pwm.h"
-#include "blinker_button.h"
 
 #define PWM_PERIOD_US (1000000UL / PWM_FREQ_HZ)
 
 static nrfx_systick_state_t pwm_timer;
-
-void setup_pwm()
-{
-    nrfx_systick_init();
-    nrfx_systick_get(&pwm_timer);
-}
 
 void pwm_write(uint32_t pin, uint32_t duty)
 {

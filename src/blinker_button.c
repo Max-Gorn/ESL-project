@@ -3,10 +3,14 @@
 #include "nrfx_gpiote.h"
 #include "nrfx_systick.h"
 
+#define NRF_LOG_MODULE_NAME button
+#include "nrf_log.h"
+NRF_LOG_MODULE_REGISTER();
+
 #include "app_config.h"
 #include "blinker_button.h"
 
-#define DOUBLE_CLICK_PENDING_PERIOD_US DOUBLE_CLICK_PENDING_PERIOD_MS*1000UL
+#define DOUBLE_CLICK_PENDING_PERIOD_US (DOUBLE_CLICK_PENDING_PERIOD_MS * 1000UL)
 
 typedef enum button_state {
     IDLE,
@@ -18,13 +22,10 @@ typedef enum button_state {
 static nrfx_systick_state_t debounce_timer;
 static nrfx_systick_state_t double_click_timer;
 
-static bool is_click = false;
-static bool is_double_click = false;
 static volatile bool button_event_pending = false;
 static button_state_t state = IDLE;
 
-static void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t polarity);
-static void button_event_processor();
+void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t polarity);
 
 void setup_button()
 {
@@ -40,30 +41,17 @@ void setup_button()
     nrfx_gpiote_in_event_enable(BUTTON_1, true);
 }
 
-bool get_is_click()
-{
-    button_event_processor();
-    return is_click;
-}
-
-bool get_is_double_click()
-{
-    button_event_processor();
-    return is_double_click;
-}
-
-static void button_event_processor()
+button_click_t read_button_state()
 {
     switch (state)
     {
         case IDLE:
-            is_click = false;
-            is_double_click = false;
             // Button event pending process
             if (button_event_pending)
             {
                 button_event_pending = false;
                 state = FIRST_CLICK;
+                NRF_LOG_INFO("IDLE -> FIRST_CLICK");
                 nrfx_systick_get(&debounce_timer);
             }
             break;
@@ -77,11 +65,14 @@ static void button_event_processor()
                 if (nrf_gpio_pin_read(BUTTON_1) != BUTTONS_ACTIVE_STATE)
                 {
                     state = IDLE;
+                    NRF_LOG_INFO("FIRST_CLICK -> IDLE");
+
                     break;
                 }
                 state = WAITING_SECOND_CLICK;
-                is_click = true;
+                NRF_LOG_INFO("FIRST_CLICK -> WAITING_SECOND_CLICK");
                 nrfx_systick_get(&double_click_timer);
+                return CLICK;
             }
             break;
 
@@ -91,12 +82,14 @@ static void button_event_processor()
             {
                 button_event_pending = false;
                 state = SECOND_CLICK;
+                NRF_LOG_INFO("WAITING_SECOND_CLICK -> SECOND_CLICK");
                 nrfx_systick_get(&debounce_timer);
             }
-
+            
             if (nrfx_systick_test(&double_click_timer, DOUBLE_CLICK_PENDING_PERIOD_US))
             {
                 state = IDLE;
+                NRF_LOG_INFO("WAITING_SECOND_CLICK -> IDLE");
             }
             
             break;
@@ -112,11 +105,12 @@ static void button_event_processor()
                 {
                     break;
                 }
-                    
-                is_double_click = true;
+                NRF_LOG_INFO("IDLE -> FIRST_CLICK");
+                return DOUBLE_CLICK;
             }
             break;
     }
+    return NONE;
 }
 
 void button_event_handler(nrfx_gpiote_pin_t pin, nrf_gpiote_polarity_t polarity)
