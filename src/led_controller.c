@@ -35,11 +35,11 @@ void led_ctrl_init()
             LED2_B | NRFX_PWM_PIN_INVERTED
         },
         .irq_priority = 6,
-        .base_clock   = NRF_PWM_CLK_1MHz,
-        .count_mode   = NRF_PWM_MODE_UP,
-        .top_value    = PWM_TOP_VALUE,
-        .load_mode    = NRF_PWM_LOAD_INDIVIDUAL,
-        .step_mode    = NRF_PWM_STEP_AUTO
+        .base_clock = NRF_PWM_CLK_1MHz,
+        .count_mode = NRF_PWM_MODE_UP,
+        .top_value = PWM_TOP_VALUE,
+        .load_mode = NRF_PWM_LOAD_INDIVIDUAL,
+        .step_mode = NRF_PWM_STEP_AUTO
     };
 
     nrfx_pwm_init(&m_pwm0, &config, NULL);
@@ -112,7 +112,7 @@ static void hsv_to_pwm_ticks(uint16_t h, uint8_t s, uint8_t v, uint16_t *r_out, 
         return;
     }
 
-    uint8_t region     = h / 60;
+    uint8_t region = h / 60;
     uint16_t remainder = (h % 60) * 100 / 60;
 
     uint32_t p = (v * (100 - s)) / 100;
@@ -122,11 +122,11 @@ static void hsv_to_pwm_ticks(uint16_t h, uint8_t s, uint8_t v, uint16_t *r_out, 
     uint32_t r = 0, g = 0, b = 0;
     switch (region)
     {
-        case 0:  r = v; g = t; b = p; break;
-        case 1:  r = q; g = v; b = p; break;
-        case 2:  r = p; g = v; b = t; break;
-        case 3:  r = p; g = q; b = v; break;
-        case 4:  r = t; g = p; b = v; break;
+        case 0: r = v; g = t; b = p; break;
+        case 1: r = q; g = v; b = p; break;
+        case 2: r = p; g = v; b = t; break;
+        case 3: r = p; g = q; b = v; break;
+        case 4: r = t; g = p; b = v; break;
         default: r = v; g = p; b = q; break;
     }
 
