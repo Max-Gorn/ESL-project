@@ -62,6 +62,7 @@ static void setup()
     nrfx_systick_init();
     led_ctrl_init();
     led_ctrl_set_hsv(hue, saturation, value);
+    NRF_LOG_INFO("h: %d; s: %d; v: %d;", hue, saturation, value);
     nrfx_systick_get(&step_timer);
 }
 
@@ -101,7 +102,7 @@ static void loop()
         }
     }
 
-    if (button_state == HOLDING && nrfx_systick_test(&step_timer, MODIFICATION_STEP_DELAY_US))
+    if (button_state == HOLDING && nrfx_systick_test(&step_timer, MODIFICATION_STEP_DELAY_US) && mode != NO_INPUT)
     {
         switch (mode)
         {
@@ -139,6 +140,7 @@ static void loop()
                 break;
         }
 
+        NRF_LOG_INFO("h: %d; s: %d; v: %d;", hue, saturation, value);
         led_ctrl_set_hsv(hue, saturation, value);
         nrfx_systick_get(&step_timer);
     }
