@@ -4,6 +4,7 @@
 typedef enum button_click {
     NONE,
     CLICK,
+    HOLDING,
     DOUBLE_CLICK
 } button_click_t;
 

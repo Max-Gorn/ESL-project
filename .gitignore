@@ -12,3 +12,8 @@
 
 # Build
 _build
+
+# Dirs
+examples
+
+src_inc_for_makefile.txt

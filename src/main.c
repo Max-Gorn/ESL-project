@@ -4,6 +4,7 @@
 #include "pca10059.h"
 #include "nrf_delay.h"
 #include "nrfx_systick.h"
+#include "nrfx_pwm.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -16,20 +17,31 @@
 
 #include "app_config.h"
 #include "blinker_button.h"
-#include "blinker_pwm.h"
+#include "led_controller.h"
+
+typedef enum input_mode
+{
+    NO_INPUT,
+    HUE,
+    SATURATION,
+    BRIGHTNESS
+} input_mode_t;
 
 #define DUTY_CHANGE_DELAY_US (DUTY_CHANGE_DELAY_MS * 1000UL)
 
-static nrfx_systick_state_t duty_change_timer;
-static int led_number;
-static bool blink_state = false;
+static nrfx_systick_state_t step_timer; // Добавить тесты таймера для каждого шага изменения у каждого свойства
 
 static const uint32_t leds[] = LEDS_LIST;
 static const int blinks_count_list[] = BLINK_SEQUENCE;
+static input_mode_t mode = NO_INPUT;
+static uint16_t hue = 360 * (blinks_count_list[2] * 10 + blinks_count_list[3]) / 100.0;
+static uint8_t saturation = 100;
+static uint8_t value = 100; // brightness
+static int8_t saturation_step = 1;
+static int8_t value_step = 1;
 
 static void setup();
 static void loop();
-static void duty_cycle();
 static void leds_init();
 static void logs_init();
 
@@ -48,81 +60,94 @@ static void setup()
     leds_init();
     setup_button();
     nrfx_systick_init();
+    led_ctrl_init();
+    led_ctrl_set_hsv(hue, saturation, value);
+    nrfx_systick_get(&step_timer);
 }
 
 static void loop()
 {
-    for (led_number = 0; led_number < LEDS_NUMBER; led_number++)
-    {
-        for (int blink_number = 0; blink_number < *(blinks_count_list + led_number);)
-        {
-            duty_cycle();
-            // nrf_gpio_pin_write(leds[led_number], !LEDS_ACTIVE_STATE);
-            blink_number++;
+    button_click_t button_state = read_button_state();
 
-            nrf_delay_ms(BLINK_DELAY_MS);
+    if (button_state == CLICK)
+    {
+        NRF_LOG_INFO("Click");
+    }
+
+    if (button_state == DOUBLE_CLICK)
+    {
+        mode = (mode + 1) % 4;
+        switch (mode)
+        {
+            case NO_INPUT:
+                NRF_LOG_INFO("mode: no input");
+                led_ctrl_set_led1_brightness(0);
+                break;
+
+            case HUE:
+                NRF_LOG_INFO("mode: hue modification");
+                led_ctrl_start_blink_led1(60);
+                break;
+
+            case SATURATION:
+                NRF_LOG_INFO("mode: saturation modification");
+                led_ctrl_start_blink_led1(10);
+                break;
+
+            case BRIGHTNESS:
+                NRF_LOG_INFO("mode: brightness modification");
+                led_ctrl_set_led1_brightness(100);
+                break;
         }
     }
-}
 
-static void duty_cycle()
-{
-    uint32_t duty = 0;
-    bool is_duty_up = true;
-
-    nrfx_systick_get(&duty_change_timer);
-
-    while (duty > 0 || is_duty_up)
+    if (button_state == HOLDING && nrfx_systick_test(&step_timer, MODIFICATION_STEP_DELAY_US))
     {
-        // NRF_LOG_INFO("Duty: %u", duty);
-        pwm_write(leds[led_number], duty);
-
-        if (blink_state && nrfx_systick_test(&duty_change_timer, DUTY_CHANGE_DELAY_US))
+        switch (mode)
         {
-            nrfx_systick_get(&duty_change_timer);
-            if (duty >= PWM_MAX_DUTY)
-            {
-                is_duty_up = false;
-            }
+            case NO_INPUT:
+                break;
 
-            if (is_duty_up)
-            {
-                duty++;
-            }
-            else
-            {
-                duty--;
-            }
+            case HUE:
+                hue = (hue + 1) % 360;
+                break;
+
+            case SATURATION:
+                if (saturation >= 100)
+                {
+                    saturation_step = -1;
+                }
+                if (saturation <= 0)
+                {
+                    saturation_step = 1;
+                }
+
+                saturation += saturation_step;
+                break;
+
+            case BRIGHTNESS:
+                if (value >= 100)
+                {
+                    value_step = -1;
+                }
+                if (value <= 0)
+                {
+                    value_step = 1;
+                }
+
+                value += value_step;
+                break;
         }
 
-        button_click_t button_state = read_button_state();
+        led_ctrl_set_hsv(hue, saturation, value);
+        nrfx_systick_get(&step_timer);
+    }
 
-        if (button_state == CLICK)
-        {
-            NRF_LOG_INFO("Click");
-        }
-
-        if (button_state == DOUBLE_CLICK)
-        {
-            blink_state = !blink_state;
-
-            NRF_LOG_INFO("Double click");
-            if (blink_state)
-            {
-                NRF_LOG_INFO("Started");
-            }
-            else
-            {
-                NRF_LOG_INFO("Paused on duty: %u", duty);
-            }
-        }
-
-        while (NRF_LOG_PROCESS())
-        {
-            LOG_BACKEND_USB_PROCESS();
-        }
+    while (NRF_LOG_PROCESS())
+    {
         LOG_BACKEND_USB_PROCESS();
     }
+    LOG_BACKEND_USB_PROCESS();
 }
 
 static void logs_init()

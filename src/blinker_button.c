@@ -15,6 +15,7 @@ NRF_LOG_MODULE_REGISTER();
 typedef enum button_state {
     IDLE,
     FIRST_CLICK,
+    HOLD,
     WAITING_SECOND_CLICK,
     SECOND_CLICK
 } button_state_t;
@@ -66,17 +67,37 @@ button_click_t read_button_state()
                 {
                     state = IDLE;
                     NRF_LOG_INFO("FIRST_CLICK -> IDLE");
-
                     break;
                 }
-                state = WAITING_SECOND_CLICK;
-                NRF_LOG_INFO("FIRST_CLICK -> WAITING_SECOND_CLICK");
+                state = HOLD;
+                NRF_LOG_INFO("FIRST_CLICK -> HOLD");
                 nrfx_systick_get(&double_click_timer);
                 return CLICK;
             }
             break;
+        
+        case HOLD:
+            if (button_event_pending || nrf_gpio_pin_read(BUTTON_1) != BUTTONS_ACTIVE_STATE)
+            {
+                state = WAITING_SECOND_CLICK;
+                NRF_LOG_INFO("HOLD -> WAITING_SECOND_CLICK");
+                break;
+            }
 
+            if (nrfx_systick_test(&double_click_timer, DOUBLE_CLICK_PENDING_PERIOD_US))
+            {
+                return HOLDING;
+            }
+
+            break;
+        
         case WAITING_SECOND_CLICK:
+            if (nrfx_systick_test(&double_click_timer, DOUBLE_CLICK_PENDING_PERIOD_US))
+            {
+                state = IDLE;
+                NRF_LOG_INFO("WAITING_SECOND_CLICK -> IDLE");
+            }
+
             // Button event pending process
             if (button_event_pending)
             {
@@ -84,12 +105,6 @@ button_click_t read_button_state()
                 state = SECOND_CLICK;
                 NRF_LOG_INFO("WAITING_SECOND_CLICK -> SECOND_CLICK");
                 nrfx_systick_get(&debounce_timer);
-            }
-            
-            if (nrfx_systick_test(&double_click_timer, DOUBLE_CLICK_PENDING_PERIOD_US))
-            {
-                state = IDLE;
-                NRF_LOG_INFO("WAITING_SECOND_CLICK -> IDLE");
             }
             
             break;
